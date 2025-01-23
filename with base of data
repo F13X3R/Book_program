@@ -1,0 +1,264 @@
+#include <stdio.h>
+#include <string.h>
+#include <float.h> // Для использования FLT_MAX
+#include <ctype.h> // Для использования isspace
+#include <time.h>  // Для работы с временем
+
+#define MAX 100
+#define MAX_LENGTH 100
+
+// Функция для удаления пробелов в конце строки
+void trimTrailingSpaces(char *str)
+{
+    int index = strlen(str) - 1;
+    while (index >= 0 && (str[index] == ' ' || str[index] == '\n' || str[index] == '\r'))
+    {
+        str[index] = '\0';
+        index--;
+    }
+}
+
+// Функция для проверки, является ли строка пустой или состоит только из пробелов
+int isStringEmpty(const char *str)
+{
+    while (*str)
+    {
+        if (!isspace((unsigned char)*str))
+            return 0;
+        str++;
+    }
+    return 1;
+}
+
+struct Book
+{
+    char title[MAX_LENGTH];
+    char author[MAX_LENGTH];
+    float price;
+    int pages;          // Число страниц
+    char publisher[MAX_LENGTH]; // Издательство
+    int year;           // Год издания
+    char city[MAX_LENGTH]; // Город издания
+};
+
+void inputBooksFromFile(FILE *file, struct Book books[MAX], int *length)
+{
+    int n;
+    if (fscanf(file, "%d\n", &n) != 1 || n < 1 || n > MAX)
+    {
+        printf("Invalid number of books in the file.\n");
+        return;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        // Чтение названия книги
+        if (!fgets(books[i].title, MAX_LENGTH, file) || isStringEmpty(books[i].title))
+        {
+            printf("Error reading book title for book %d.\n", i + 1);
+            return;
+        }
+        trimTrailingSpaces(books[i].title);
+
+        // Чтение автора
+        if (!fgets(books[i].author, MAX_LENGTH, file) || isStringEmpty(books[i].author))
+        {
+            printf("Error reading author name for book %d.\n", i + 1);
+            return;
+        }
+        trimTrailingSpaces(books[i].author);
+
+        // Чтение цены
+        if (fscanf(file, "%f\n", &books[i].price) != 1 || books[i].price < 0)
+        {
+            printf("Error reading book price for book %d.\n", i + 1);
+            return;
+        }
+
+        // Чтение числа страниц
+        if (fscanf(file, "%d\n", &books[i].pages) != 1 || books[i].pages < 0)
+        {
+            printf("Error reading number of pages for book %d.\n", i + 1);
+            return;
+        }
+
+        // Чтение издательства
+        if (!fgets(books[i].publisher, MAX_LENGTH, file) || isStringEmpty(books[i].publisher))
+        {
+            printf("Error reading publisher for book %d.\n", i + 1);
+            return;
+        }
+        trimTrailingSpaces(books[i].publisher);
+
+        // Чтение года издания
+        if (fscanf(file, "%d\n", &books[i].year) != 1 || books[i].year < 0)
+        {
+            printf("Error reading year of publication for book %d.\n", i + 1);
+            return;
+        }
+
+        // Чтение города издания
+        if (!fgets(books[i].city, MAX_LENGTH, file) || isStringEmpty(books[i].city))
+        {
+            printf("Error reading city of publication for book %d.\n", i + 1);
+            return;
+        }
+        trimTrailingSpaces(books[i].city);
+    }
+    *length = n;
+}
+
+void validateBooks(struct Book books[MAX], int length)
+{
+    for (int i = 0; i < length; i++)
+    {
+        if (strlen(books[i].title) == 0)
+        {
+            printf("Error: Book title is empty for book %d.\n", i + 1);
+            return;
+        }
+        if (strlen(books[i].author) == 0)
+        {
+            printf("Error: Author name is empty for book %d.\n", i + 1);
+            return;
+        }
+        if (books[i].price < 0)
+        {
+            printf("Error: Price is negative for book %d.\n", i + 1);
+            return;
+        }
+        if (books[i].pages < 0)
+        {
+            printf("Error: Number of pages is negative for book %d.\n", i + 1);
+            return;
+        }
+        if (strlen(books[i].publisher) == 0)
+        {
+            printf("Error: Publisher is empty for book %d.\n", i + 1);
+            return;
+        }
+        if (books[i].year < 0)
+        {
+            printf("Error: Year of publication is negative for book %d.\n", i + 1);
+            return;
+        }
+        if (strlen(books[i].city) == 0)
+        {
+            printf("Error: City of publication is empty for book %d.\n", i + 1);
+            return;
+        }
+    }
+}
+
+void findCheapestBooksByAuthor(struct Book books[MAX], int length, const char *author, char results[MAX][MAX_LENGTH], int *resultCount)
+{
+    float minPrice = FLT_MAX; // Начальное значение для поиска минимальной цены
+    *resultCount = 0;
+
+    for (int i = 0; i < length; i++)
+    {
+        if (strcmp(books[i].author, author) == 0)
+        {
+            if (books[i].price < minPrice)
+            {
+                minPrice = books[i].price; // Обновляем минимальную цену
+                *resultCount = 0;          // Сбрасываем счетчик результатов
+                strcpy(results[*resultCount], books[i].title);
+                (*resultCount)++;
+            }
+            else if (books[i].price == minPrice)
+            {
+                strcpy(results[*resultCount], books[i].title);
+                (*resultCount)++;
+            }
+        }
+    }
+}
+
+void outputCheapestBooksToFile(FILE *outputFile, const char *author, char results[MAX][MAX_LENGTH], int resultCount, struct Book books[MAX], int length)
+{
+    // Получаем текущее время
+    time_t now;
+    time(&now);
+    struct tm *local = localtime(&now);
+
+    // Выводим дату и время в файл
+    fprintf(outputFile, "Report generated on: %04d-%02d-%02d %02d:%02d:%02d\n",
+            local->tm_year + 1900, local->tm_mon + 1, local->tm_mday,
+            local->tm_hour, local->tm_min, local->tm_sec);
+
+    if (resultCount > 0)
+    {
+        fprintf(outputFile, "Books with the lowest price by author '%s':\n", author);
+        for (int i = 0; i < resultCount; i++)
+        {
+            // Находим книгу в массиве books по названию
+            for (int j = 0; j < length; j++)
+            {
+                if (strcmp(books[j].title, results[i]) == 0)
+                {
+                    fprintf(outputFile, "Title: %s\n", books[j].title);
+                    fprintf(outputFile, "Author: %s\n", books[j].author);
+                    fprintf(outputFile, "Price: %.2f\n", books[j].price);
+                    fprintf(outputFile, "Pages: %d\n", books[j].pages);
+                    fprintf(outputFile, "Publisher: %s\n", books[j].publisher);
+                    fprintf(outputFile, "Year: %d\n", books[j].year);
+                    fprintf(outputFile, "City: %s\n", books[j].city);
+                    fprintf(outputFile, "-------------------------\n");
+                    break;
+                }
+            }
+        }
+    }
+    else
+    {
+        fprintf(outputFile, "No books found for author '%s'.\n", author);
+    }
+}
+
+int main()
+{
+    struct Book books[MAX];
+    int length;
+    char results[MAX][MAX_LENGTH];
+    int resultCount;
+    char author[MAX_LENGTH];
+
+    // Открываем файл для чтения
+    FILE *inputFile = fopen("books.txt", "r");
+    if (!inputFile)
+    {
+        printf("Failed to open the file for reading.\n");
+        return 1;
+    }
+
+    // Читаем данные о книгах из файла
+    inputBooksFromFile(inputFile, books, &length);
+    fclose(inputFile);
+
+    // Проверяем корректность данных
+    validateBooks(books, length);
+
+    // Запрашиваем автора у пользователя
+    printf("Enter the author's name: ");
+    fgets(author, MAX_LENGTH, stdin);
+    trimTrailingSpaces(author);
+
+    // Ищем книги с самой низкой ценой для указанного автора
+    findCheapestBooksByAuthor(books, length, author, results, &resultCount);
+
+    FILE *outputFile = fopen("output.txt", "w");
+    if (!outputFile)
+    {
+        printf("Failed to open the output file for writing.\n");
+        return 1;
+    }
+
+    // Записываем результаты в файл
+    outputCheapestBooksToFile(outputFile, author, results, resultCount, books, length);
+    fclose(outputFile);
+
+    printf("Results have been written to 'output.txt'.\n");
+
+    return 0;
+}
