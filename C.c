@@ -1,6 +1,6 @@
 #nclude <stdio.h>
-include <string.h>
-include <ctype.h> 
+#include <string.h>
+#include <ctype.h> 
 
 define MAX_BOOKS 100
 define MAX_LENGTH 100
